@@ -26,9 +26,28 @@ jobs:
         settings-path: ${{ github.workspace }} # location for the settings.xml file
 
     - name: Build with Maven
-      run: mvn -B package --file pom.xml
+      run: mvn clean package -DskipTests
+    - name: Deploy to ECS
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        scp -o StrictHostKeyChecking=no target/*.jar ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/project/smartwork.jar
+        ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          if pgrep -f "java.*smartwork.jar"; then
+          pkill -f "java.*smartwork.jar"
+          fi
+          nohup java -jar /project/smartwork.jar > /project/app.log 2>&1 &
+        EOF
+    - name: Get commit information
+      id: commit_info
+      run: |
+        COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+        echo "COMMIT_MESSAGE=${COMMIT_MESSAGE}" >> $GITHUB_ENV
 
-    - name: Publish to GitHub Packages Apache Maven
-      run: mvn deploy -s $GITHUB_WORKSPACE/settings.xml
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
+
+    - name: Send Telegram notification
+      run: |
+        COMMIT_URL="https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
+        curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage     -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }}     -d parse_mode="HTML"     -d text=$'✅ <b>New commit to</b> <code>${{ github.repository }}</code> <b>on branch</b> <code>${{ github.ref_name }}</code>\n\n<b>Commit Author</b>: <code>${{ github.actor }}</code>\n<b>Commit Message</b>: <code>${{ env.COMMIT_MESSAGE }}</code>\n<b>Commit SHA</b>: <a href="'${COMMIT_URL}'">${{ github.sha }}</a>'
+
