@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
+        
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
@@ -20,25 +20,7 @@ jobs:
       - name: Build with Maven
         # run: mvn clean package -DskipTests
         run: mvn archetype:generate -DgroupId=com.mycompany.app -DartifactId=my-app -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
-      - name: Deploy to ECS
-        env:
-          ECS_IP: ${{ secrets.SERVER_HOST }}
-          ECS_USER: ${{ secrets.SERVER_USER }}
-          ECS_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
 
-          scp -o StrictHostKeyChecking=no target/*.jar ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/project/smartwork.jar
-
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-            if pgrep -f "java.*smartwork.jar"; then
-              pkill -f "java.*smartwork.jar"
-            fi
-
-            nohup java -jar /project/smartwork.jar > /project/app.log 2>&1 &
-          EOF
 
       - name: Get commit information
         id: commit_info
