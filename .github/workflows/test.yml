@@ -18,7 +18,8 @@ jobs:
           distribution: 'temurin'
 
       - name: Build with Maven
-        run: mvn clean package -DskipTests
+        # run: mvn clean package -DskipTests
+        run: mvn archetype:generate -DgroupId=com.mycompany.app -DartifactId=my-app -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
       - name: Deploy to ECS
         env:
           ECS_IP: ${{ secrets.SERVER_HOST }}
